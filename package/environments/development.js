@@ -44,8 +44,4 @@ module.exports = class extends Environment {
       }
     }
   }
-
-  toWebpackConfig() {
-    return this.config
-  }
 }

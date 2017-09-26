@@ -30,27 +30,6 @@ const getPluginMap = () => {
   return result
 }
 
-const getExtensionsGlob = () => {
-  const { extensions } = config
-  if (!extensions.length) {
-    throw new Error('You must configure at least one extension to compile in webpacker.yml')
-  }
-  return extensions.length === 1 ? `**/${extensions[0]}` : `**/*{${extensions.join(',')}}`
-}
-
-const getEntryMap = () => {
-  const result = new Map()
-  const glob = getExtensionsGlob()
-  const rootPath = join(config.source_path, config.source_entry_path)
-  const paths = sync(join(rootPath, glob))
-  paths.forEach((path) => {
-    const namespace = relative(join(rootPath), dirname(path))
-    const name = join(namespace, basename(path, extname(path)))
-    result.set(name, resolve(path))
-  })
-  return result
-}
-
 const getResolvedModuleMap = () => {
   const result = new Map()
   result.set('source', resolve(config.source_path))
@@ -63,20 +42,34 @@ const getResolvedModuleMap = () => {
   return result
 }
 
-const getObjectFromMap = ((map) => {
-  const obj = {}
-  map.forEach((v, k) => (obj[k] = v))
-  return obj
-})
+const getExtensionsGlob = () => {
+  const { extensions } = config
+  if (!extensions.length) {
+    throw new Error('You must configure at least one extension to compile in webpacker.yml')
+  }
+  return extensions.length === 1 ? `**/${extensions[0]}` : `**/*{${extensions.join(',')}}`
+}
+
+const getEntryObject = () => {
+  const result = {}
+  const glob = getExtensionsGlob()
+  const rootPath = join(config.source_path, config.source_entry_path)
+  const paths = sync(join(rootPath, glob))
+  paths.forEach((path) => {
+    const namespace = relative(join(rootPath), dirname(path))
+    const name = join(namespace, basename(path, extname(path)))
+    result[name] = resolve(path)
+  })
+  return result
+}
 
 module.exports = class Environment {
   constructor() {
     this.loaders = getLoaderMap()
     this.plugins = getPluginMap()
-    this.entries = getEntryMap()
     this.resolvedModules = getResolvedModuleMap()
     this.config = {
-      entry: getObjectFromMap(this.entries),
+      entry: getEntryObject(),
 
       output: {
         filename: '[name]-[chunkhash].js',
@@ -100,9 +93,5 @@ module.exports = class Environment {
         modules: ['node_modules']
       }
     }
-  }
-
-  toWebpackConfig() {
-    return this.config
   }
 }

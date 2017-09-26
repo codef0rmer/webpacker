@@ -27,8 +27,4 @@ module.exports = class extends Environment {
     this.config.devtool = 'nosources-source-map'
     this.config.stats = 'normal'
   }
-
-  toWebpackConfig() {
-    return this.config
-  }
 }

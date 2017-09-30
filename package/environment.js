@@ -10,15 +10,17 @@ const merge = require('webpack-merge')
 const ExtractTextPlugin = require('extract-text-webpack-plugin')
 const ManifestPlugin = require('webpack-manifest-plugin')
 
-const paths = require('./config')
+const loaders = require('./loaders')
 const assetHost = require('./asset_host')
+const {
+  source_path: sourcePath,
+  resolved_paths: resolvedPaths,
+  source_entry_path: sourceEntryPath,
+  extensions
+} = require('./config')
 
-const getBaseLoaders = () => {
-  const result = []
-  const loaderPaths = sync(resolve(__dirname, 'loaders', '*.js'))
-  loaderPaths.forEach(path => result.push(require(path)))
-  return result
-}
+const getBaseLoaders = () =>
+  Object.values(loaders).map(loader => loader)
 
 const getBasePlugins = () => {
   const result = []
@@ -30,16 +32,15 @@ const getBasePlugins = () => {
 
 const getBaseResolvedModules = () => {
   const result = []
-  result.push(resolve(paths.source_path))
+  result.push(resolve(sourcePath))
   result.push('node_modules')
-  if (paths.resolved_paths) {
-    paths.resolved_paths.forEach(path => result.push(path))
+  if (resolvedPaths) {
+    resolvedPaths.forEach(path => result.push(path))
   }
   return result
 }
 
 const getExtensionsGlob = () => {
-  const { extensions } = paths
   if (!extensions.length) {
     throw new Error('You must configure at least one extension to compile in webpacker.yml')
   }
@@ -49,7 +50,7 @@ const getExtensionsGlob = () => {
 const getEntryObject = () => {
   const result = {}
   const glob = getExtensionsGlob()
-  const entryPath = join(paths.source_path, paths.source_entry_path)
+  const entryPath = join(sourcePath, sourceEntryPath)
   const entryPaths = sync(join(entryPath, glob))
   entryPaths.forEach((path) => {
     const namespace = relative(join(entryPath), dirname(path))
@@ -84,7 +85,7 @@ module.exports = class Environment {
       plugins: getBasePlugins(),
 
       resolve: {
-        extensions: paths.extensions,
+        extensions,
         modules: getBaseResolvedModules()
       },
 

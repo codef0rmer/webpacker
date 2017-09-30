@@ -22,14 +22,6 @@ const {
 const getBaseLoaders = () =>
   Object.values(loaders).map(loader => loader)
 
-const getBasePlugins = () => {
-  const result = []
-  result.push(new webpack.EnvironmentPlugin(JSON.parse(JSON.stringify(process.env))))
-  result.push(new ExtractTextPlugin('[name]-[contenthash].css'))
-  result.push(new ManifestPlugin({ publicPath: assetHost.publicPath, writeToFileEmit: true }))
-  return result
-}
-
 const getBaseResolvedModules = () => {
   const result = []
   result.push(resolve(sourcePath))
@@ -82,7 +74,11 @@ module.exports = class Environment {
         rules: getBaseLoaders()
       },
 
-      plugins: getBasePlugins(),
+      plugins: [
+        new webpack.EnvironmentPlugin(JSON.parse(JSON.stringify(process.env))),
+        new ExtractTextPlugin('[name]-[contenthash].css'),
+        new ManifestPlugin({ publicPath: assetHost.publicPath, writeToFileEmit: true })
+      ],
 
       resolve: {
         extensions,

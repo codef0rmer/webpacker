@@ -67,9 +67,10 @@ module.exports = class Environment {
   constructor() {
     this.loaders = getLoaderMap()
     this.plugins = getPluginMap()
+    this.entries = getEntryObject()
     this.resolvedModules = getResolvedModuleMap()
     this.config = {
-      entry: getEntryObject(),
+      entry: this.entries,
 
       output: {
         filename: '[name]-[chunkhash].js',

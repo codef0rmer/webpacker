@@ -18,6 +18,7 @@ module.exports = class extends Environment {
 
     this.config.output.pathinfo = true
     this.config.devtool = 'cheap-eval-source-map'
+
     this.config.devServer = {
       clientLogLevel: 'none',
       compress: true,

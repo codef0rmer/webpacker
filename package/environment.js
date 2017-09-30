@@ -6,44 +6,40 @@ const { sync } = require('glob')
 const extname = require('path-complete-extname')
 
 const webpack = require('webpack')
+const merge = require('webpack-merge')
 const ExtractTextPlugin = require('extract-text-webpack-plugin')
 const ManifestPlugin = require('webpack-manifest-plugin')
 
-const config = require('./config')
+const paths = require('./config')
 const assetHost = require('./asset_host')
 
-const getLoaderMap = () => {
-  const result = new Map()
-  const paths = sync(resolve(__dirname, 'loaders', '*.js'))
-  paths.forEach((path) => {
-    const name = basename(path, extname(path))
-    result.set(name, require(path))
-  })
+const getBaseLoaders = () => {
+  const result = []
+  const loaderPaths = sync(resolve(__dirname, 'loaders', '*.js'))
+  loaderPaths.forEach(path => result.push(require(path)))
   return result
 }
 
-const getPluginMap = () => {
-  const result = new Map()
-  result.set('Environment', new webpack.EnvironmentPlugin(JSON.parse(JSON.stringify(process.env))))
-  result.set('ExtractText', new ExtractTextPlugin('[name]-[contenthash].css'))
-  result.set('Manifest', new ManifestPlugin({ publicPath: assetHost.publicPath, writeToFileEmit: true }))
+const getBasePlugins = () => {
+  const result = []
+  result.push(new webpack.EnvironmentPlugin(JSON.parse(JSON.stringify(process.env))))
+  result.push(new ExtractTextPlugin('[name]-[contenthash].css'))
+  result.push(new ManifestPlugin({ publicPath: assetHost.publicPath, writeToFileEmit: true }))
   return result
 }
 
-const getResolvedModuleMap = () => {
-  const result = new Map()
-  result.set('source', resolve(config.source_path))
-  result.set('node_modules', 'node_modules')
-  if (config.resolved_paths) {
-    config.resolved_paths.forEach(path =>
-      result.set(path, path)
-    )
+const getBaseResolvedModules = () => {
+  const result = []
+  result.push(resolve(paths.source_path))
+  result.push('node_modules')
+  if (paths.resolved_paths) {
+    paths.resolved_paths.forEach(path => result.push(path))
   }
   return result
 }
 
 const getExtensionsGlob = () => {
-  const { extensions } = config
+  const { extensions } = paths
   if (!extensions.length) {
     throw new Error('You must configure at least one extension to compile in webpacker.yml')
   }
@@ -53,10 +49,10 @@ const getExtensionsGlob = () => {
 const getEntryObject = () => {
   const result = {}
   const glob = getExtensionsGlob()
-  const rootPath = join(config.source_path, config.source_entry_path)
-  const paths = sync(join(rootPath, glob))
-  paths.forEach((path) => {
-    const namespace = relative(join(rootPath), dirname(path))
+  const entryPath = join(paths.source_path, paths.source_entry_path)
+  const entryPaths = sync(join(entryPath, glob))
+  entryPaths.forEach((path) => {
+    const namespace = relative(join(entryPath), dirname(path))
     const name = join(namespace, basename(path, extname(path)))
     result[name] = resolve(path)
   })
@@ -65,12 +61,14 @@ const getEntryObject = () => {
 
 module.exports = class Environment {
   constructor() {
-    this.loaders = getLoaderMap()
-    this.plugins = getPluginMap()
-    this.entries = getEntryObject()
-    this.resolvedModules = getResolvedModuleMap()
+    this.mergeOptions = {
+      entry: 'append',
+      'module.rules': 'append',
+      plugins: 'append'
+    }
+
     this.config = {
-      entry: this.entries,
+      entry: getEntryObject(),
 
       output: {
         filename: '[name]-[chunkhash].js',
@@ -80,19 +78,42 @@ module.exports = class Environment {
       },
 
       module: {
-        rules: Array.from(this.loaders.values())
+        rules: getBaseLoaders()
       },
 
-      plugins: Array.from(this.plugins.values()),
+      plugins: getBasePlugins(),
 
       resolve: {
-        extensions: config.extensions,
-        modules: Array.from(this.resolvedModules.values())
+        extensions: paths.extensions,
+        modules: getBaseResolvedModules()
       },
 
       resolveLoader: {
         modules: ['node_modules']
       }
     }
+  }
+
+  addLoader(loader) {
+    this.config = this.mergeConfig({
+      module: {
+        rules: Array.isArray(loader) ? loader : [loader]
+      }
+    })
+  }
+
+  addPlugin(plugin) {
+    this.config = this.mergeConfig({
+      plugins: Array.isArray(plugin) ? plugin : [plugin]
+    })
+  }
+
+  mergeConfig(config) {
+    this.config = merge.smartStrategy(this.mergeOptions)(this.config, config)
+    return this.config
+  }
+
+  toWebpackConfig() {
+    return this.config
   }
 }
